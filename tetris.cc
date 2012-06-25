@@ -71,11 +71,11 @@ class Tetris
     memset(playfield_, 0, sizeof(playfield_));
     // bottom border
     for(unsigned x = 0; x < playfield_width;x++) {
-      screen_[center_offset + 11*32 + x] = 0x901c;
+      screen_[left_offset_ + 11*32 + x] = 0x901c;
     }
     for(unsigned y = 0; y <= playfield_height/2;y++) {
-      screen_[center_offset-1 + y*32] = 0x9900;
-      screen_[center_offset+playfield_width + y*32] = 0x9900;
+      screen_[left_offset_-1 + y*32] = 0x9900;
+      screen_[left_offset_+playfield_width + y*32] = 0x9900;
     }
     speed_ = 2000;
     rand_state_ = 0x6531;
@@ -204,7 +204,11 @@ int main()
 {
   // alloc screen, playfield
   unsigned screen[384];
+  // xxx<12>yy<12>zzz
+  // xxx+yy+zzz = 8
   Tetris t(center_offset, screen);
+  //Tetris t1(4, screen);
+  //Tetris t2(4+12+2, screen);
 
   // TODO: update font (later -- for now, use 0x1c)
   //memset(screen_, 0, sizeof(screen_));
