@@ -98,7 +98,7 @@ class Tetris
 
   unsigned RandomPiece() {
     rand_state_ *= 0xf837;
-    rand_state_ -= 8213;
+    rand_state_ -= 8212;
     return rand_state_ % 7;
   }
 
@@ -147,14 +147,42 @@ class Tetris
     }
   }
 
+  bool CheckPieceCollision() {
+    int playfield_offset = piece_y_*playfield_width + piece_x_;
+    unsigned piece_data = tetris_pieces[current_piece_].shape[piece_rot_];
+    for(int j=0;j<4;j++, playfield_offset += (playfield_width - 4)) {
+      for(int i=0;i<4;i++, playfield_offset++) {
+        if(piece_data&(0x8000>>(i+4*j))) {
+          if(piece_x_ + i < 0) return true;
+          if(piece_x_ + i >= playfield_width) return true;
+          if(piece_y_ + j < 0) continue;
+          if(piece_y_ + j >= playfield_height) return true;
+          if(playfield_[playfield_offset])
+            return true;
+        }
+      }
+    }
+    return false;
+  }
+
   void NextFrame() {
     // remove piece from buf
     DrawPiece(0);
     // drop the piece by 1
-    piece_y_++;
-    if(piece_y_ > 28) piece_y_ = -4;
-    //current_piece_ ++; current_piece_ %= 7;
     piece_rot_ ++;  piece_rot_ &= 3;
+    if(CheckPieceCollision()) {
+      piece_rot_ --;  piece_rot_ &= 3;
+    }
+    piece_y_++;
+    if(CheckPieceCollision()) {
+      piece_y_ --;
+      DrawPiece(tetris_pieces[current_piece_].color);
+      BlitPlayfield(max(0, piece_y_-1), min(23,piece_y_+4));
+      NextPiece();
+      return;
+    }
+    // if(piece_y_ > 28) piece_y_ = -4;
+    //current_piece_ ++; current_piece_ %= 7;
     // collision-detect
     // if collision, put piece back where it was in the buf and NextPiece()
     // if clear, draw piece into buf at new location and BlitPlayfield()
