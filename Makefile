@@ -1,6 +1,7 @@
 CLANG = ~/git/llvm-dcpu16/cbuild/bin/clang
 DAS = ~/git/das/das
-CFLAGS = -Wall -O3 -fno-builtin
+#CFLAGS = -Wall -O3 -fno-builtin -std=c++11
+CFLAGS = -Wall -O2 -fno-builtin
 
 OBJS = crt0.s tetris.s
 

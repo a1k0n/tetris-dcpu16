@@ -47,6 +47,29 @@
   SET I, POP
   SET PC, POP
 
+
+  .globl keyboard_scan
+:keyboard_scan
+  SET B, A
+  SET A, 2
+  HWI [_hw_keyboard]
+  SET A, C
+  SET PC, POP
+
+  .globl clock_init
+:clock_init
+  SET B, A
+  SET A, 0
+  HWI [_hw_clock]
+  SET PC, POP
+
+  .globl clock_get_ticks
+:clock_get_ticks
+  SET A, 1
+  HWI [_hw_clock]
+  SET A, C
+  SET PC, POP
+
         .section        data,"w"
         .globl _hw_screen, _hw_clock, _hw_keyboard
 :_hw_screen
