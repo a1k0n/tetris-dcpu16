@@ -103,10 +103,12 @@ class Tetris
       Move(-1);
     if (input&2) // right
       Move(1);
-    if (input&16) // rot r
+    if (input&16 || input&4) // rot r
       Rotate(1);
     if (input&32) // rot l
       Rotate(-1);
+    if (input&8)  // down
+      NextFrame();
 
     if(ticks_ > speed_) {
       ticks_ -= speed_;
