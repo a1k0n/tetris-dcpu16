@@ -1,5 +1,18 @@
 #include "crt0.h"
 
+// TODO:
+//  - clear lines, drop, re-check for more lines cleared, etc
+//  - detect game over
+//  - blit character-at-a-time, not block-at-a-time
+//  - next piece indicator
+//  - better key repeat logic, esp. for down
+//  - lines/score display
+//  - logo w/ press key to start to init RNG
+//  - instructions
+// maybe:
+//  - ghost display
+//  - hold piece
+
 // Tetris guidelines: Playfield is 10 cells wide and at least 22 cells tall,
 // where rows above 20 are hidden or obstructed by the field frame
 // The I and O spawn in the middle columns
@@ -12,6 +25,12 @@ static const int center_offset = (32 - playfield_width)/2;
 template<class T> T min(T a, T b) { if(a<b) return a; return b; }
 template<class T> T max(T a, T b) { if(a>b) return a; return b; }
 
+static int toupper(int c) {
+  if(c >= 'a' && c <= 'z')
+    return c - 32;
+  return c;
+}
+
 static inline void screen_set_frameptr(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,0\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
@@ -20,7 +39,7 @@ static inline void screen_set_fontptr(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,1\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
-struct Tetromino {
+static struct Tetromino {
   unsigned color;
   unsigned shape[4];  // the shape as a 4x4 bitmap, in each orientation
   // MSB on the left, most significant nibble at the top
@@ -57,6 +76,8 @@ struct Tetromino {
   }
 };
 
+namespace {
+
 class Tetris
 {
  public:
@@ -80,46 +101,51 @@ class Tetris
     }
     speed_ = 30;
     ticks_ = 0;
+    score_ = lines_ = 0;
     rand_state_ = 0x6531;
-    next_piece_ = RandomPiece();
+    ShufflePieces();
+    next_piece_idx_ = 0;
     NextPiece();
   }
 
+  // "inside-out" Fisher-Yates shuffle
+  void ShufflePieces() {
+    piece_permutation_[0] = 0;
+    for(unsigned i=1;i<7;i++) {
+      int j = Random()%i;
+      piece_permutation_[i] = piece_permutation_[j];
+      piece_permutation_[j] = i;
+    }
+    for(unsigned i=0;i<7;i++)
+      screen_[i] = 0x0f30 + piece_permutation_[i];
+  }
+
   void NextPiece() {
-    current_piece_ = next_piece_;
+    current_piece_ = piece_permutation_[next_piece_idx_];
     current_color_ = tetris_pieces[current_piece_].color;
-    next_piece_ = RandomPiece();
+    next_piece_idx_++;
+    if(next_piece_idx_ == 7) {
+      ShufflePieces();
+      next_piece_idx_ = 0;
+    }
     piece_x_ = startoffs_x;
-    piece_y_ = 0;
+    piece_y_ = -1;
     piece_rot_ = 0;
   }
 
-  void Update(int ticks, unsigned input) {
+  void Update(int ticks) {
     ticks_ += ticks;
-    // do key repeat, etc
-    // changing this if to while (which is more correct, but pointless in
-    // practice) crashes clang or llc
-    if (input&1) // left
-      Move(-1);
-    if (input&2) // right
-      Move(1);
-    if (input&16 || input&4) // rot r
-      Rotate(1);
-    if (input&32) // rot l
-      Rotate(-1);
-    if (input&8)  // down
-      NextFrame();
-
+    // changing this if to while crashes the compiler
     if(ticks_ > speed_) {
       ticks_ -= speed_;
-      NextFrame();
+      Drop();
     }
   }
 
-  unsigned RandomPiece() {
-    rand_state_ *= 0xf837;
-    rand_state_ -= 8212;
-    return rand_state_ % 7;
+  unsigned Random() {
+    rand_state_ *= 16807;
+    if(rand_state_ > 2147483647UL) rand_state_ -= 2147483647;
+    return rand_state_&65535;
   }
 
 #if 0
@@ -183,7 +209,47 @@ class Tetris
     return false;
   }
 
-  void NextFrame() {
+  bool IsLineFull(int lineno) {
+    int offs = lineno*playfield_width;
+    for(int i=0;i<playfield_width;i++) {
+      if(playfield_[offs + i] == 0)
+        return false;
+    }
+    return true;
+  }
+
+  void CheckLines() {
+    //unsigned lines[playfield_height];
+    //unsigned nlines = 0;
+    for(int j=playfield_height-1;j>=0;j--) {
+      if(IsLineFull(j)) {
+        //lines[nlines++] = j;
+        lines_ ++;
+        memcpyb(playfield_ + playfield_width, playfield_, j*playfield_width);
+        memset(playfield_, 0, playfield_width);
+        BlitPlayfield(0, playfield_height);
+        j++;
+      }
+    }
+#if 0
+    for(int k=0;k<nlines;k++) {
+      unsigned offs = lines[k]*playfield_width;
+      memset(playfield_ + offs, 0, 10);
+    }
+      // animate clearing them, then drop everything
+      for(int i=0;i<5;i++) {
+        for(int k=0;k<nlines;k++) {
+          int offs = lines[k]*10 + 5;
+          playfield_[offs - 1 - i] = 0;
+          playfield_[offs + i] = 0;
+          //playfield_[0] = 0;
+        }
+        BlitPlayfield(0, playfield_height);
+      }
+#endif
+  }
+
+  void Drop() {
     // remove piece from buf
     DrawPiece(0);
     // drop the piece by 1
@@ -192,6 +258,7 @@ class Tetris
       piece_y_ --;
       DrawPiece(current_color_);
       BlitPlayfield(max(0, piece_y_-1), min(23,piece_y_+4));
+      CheckLines();
       NextPiece();
       return;
     }
@@ -230,14 +297,18 @@ class Tetris
 
  private:
   unsigned* screen_;
-  unsigned current_piece_, next_piece_;
+  unsigned current_piece_, next_piece_idx_;
+  unsigned piece_permutation_[7];
   unsigned current_color_;
   int piece_x_, piece_y_, piece_rot_;
   unsigned left_offset_;
   int speed_, ticks_;
-  unsigned rand_state_;
+  unsigned long score_, lines_;
+  unsigned long rand_state_;
   unsigned playfield_[playfield_width*playfield_height];
 };
+
+}
 
 int main()
 {
@@ -261,6 +332,30 @@ int main()
   for(;;) {
     int newt = clock_get_ticks();
     int dt = newt - ticks;
+    t.Update(dt);
+    switch(toupper(keyboard_getch())) {
+      case 'A':
+      case 0x82: // left
+        t.Move(-1);
+        break;
+      case 'D':
+      case 0x83: // right
+        t.Move(1);
+        break;
+      case 'W':
+      case 0x80: // up
+      case ' ':
+      case 'E':
+        t.Rotate(1);
+        break;
+      case 'Q':
+        t.Rotate(-1);
+        break;
+      case 'S':
+        t.Drop();
+        break;
+    }
+#if 0
     unsigned input = 0;
     // this keyboard API is utterly silly
     input |= keyboard_scan(0x82)<<0; // left
@@ -275,7 +370,7 @@ int main()
     input |= keyboard_scan('E')<<4;
     input |= keyboard_scan('Q')<<5;  // rotate left
     screen[0] = 0xf030 + input;
-    t.Update(dt, input);
+#endif
     ticks = newt;
   }
 }

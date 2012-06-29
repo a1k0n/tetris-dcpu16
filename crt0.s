@@ -48,10 +48,49 @@
   SET PC, POP
 
 
+  .globl memcpyb
+:memcpyb
+  IFU C, 0 ; zero or negative size -> return
+    SET PC, POP
+  SET PUSH, I
+  SET PUSH, J
+  SET J, A
+  SET I, B
+  SET B, C
+  SUB C, 1
+  SUB A, 1
+  ADD J, C ; J is now the last dest address
+  ADD I, C ; I is now the last src address
+  AND B, 7
+  MUL B, -1
+  ADD B, 8 ; B is 8-len&7
+  ADD PC, B ; jump into table below
+  STD [J], [I]
+  STD [J], [I]
+  STD [J], [I]
+  STD [J], [I]
+  STD [J], [I]
+  STD [J], [I]
+  STD [J], [I]
+  STD [J], [I]
+  IFN J, A
+    SUB PC, 10 ; PC-10 is the loop above
+  SET J, POP
+  SET I, POP
+  SET PC, POP
+
+
   .globl keyboard_scan
 :keyboard_scan
   SET B, A
   SET A, 2
+  HWI [_hw_keyboard]
+  SET A, C
+  SET PC, POP
+
+  .globl keyboard_getch
+:keyboard_getch
+  SET A, 1
   HWI [_hw_keyboard]
   SET A, C
   SET PC, POP
