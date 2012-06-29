@@ -6,7 +6,6 @@
 //  - blit character-at-a-time, not block-at-a-time
 //  - better key repeat logic, esp. for down
 //  - logo w/ press key to start to init RNG
-//  - instructions
 // maybe:
 //  - ghost display
 //  - wall kicks/etc

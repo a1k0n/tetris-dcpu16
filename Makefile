@@ -7,7 +7,8 @@ OBJS = crt0.s tetris.s
 
 all: tetris.bin
 
-dump: tetris.bin
+dump: tetris.bin comments.s
+	@cat comments.s
 	@python dumpdat.py tetris.bin
 
 tetris.bin: $(OBJS)
