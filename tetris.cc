@@ -201,6 +201,8 @@ class Tetris
     DrawNextPiece(piece_permutation_[next_piece_idx_]);
   }
 
+  void ResetLockTimer() { ticks_ = 0; }
+
   void Update(int ticks) {
     ticks_ += ticks;
     // changing this if to while crashes the compiler
@@ -449,6 +451,7 @@ int main()
       case 0x80: // up
       case ' ':
         t.Drop();
+        t.ResetLockTimer();
         break;
       case 'E':
         t.Rotate(1);
@@ -458,6 +461,7 @@ int main()
         break;
       case 'S':
         t.Fall();
+        t.ResetLockTimer();
         break;
     }
 #if 0
