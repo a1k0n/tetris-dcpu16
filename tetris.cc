@@ -188,7 +188,7 @@ class Tetris
     // changing this if to while crashes the compiler
     if(ticks_ > speed_) {
       ticks_ -= speed_;
-      Drop();
+      Fall();
     }
   }
 
@@ -304,7 +304,8 @@ class Tetris
 #endif
   }
 
-  void Drop() {
+  // fall one square
+  void Fall() {
     // remove piece from buf
     DrawPiece(0);
     // drop the piece by 1
@@ -324,6 +325,18 @@ class Tetris
     // if clear, draw piece into buf at new location and BlitPlayfield()
     DrawPiece(current_color_);
     BlitPlayfield(max(0, piece_y_-1), min(23,piece_y_+4));
+  }
+
+  // drop to the bottom (but still let the player slide before locking)
+  void Drop() {
+    DrawPiece(0);
+    int orig_y = piece_y_;
+    do {
+      piece_y_++;
+    } while(!CheckPieceCollision());
+    piece_y_--;
+    DrawPiece(current_color_);
+    BlitPlayfield(max(0, orig_y), min(23,piece_y_+4));
   }
 
   void Move(int dir) {
@@ -400,6 +413,8 @@ int main()
       case 'W':
       case 0x80: // up
       case ' ':
+        t.Drop();
+        break;
       case 'E':
         t.Rotate(1);
         break;
@@ -407,7 +422,7 @@ int main()
         t.Rotate(-1);
         break;
       case 'S':
-        t.Drop();
+        t.Fall();
         break;
     }
 #if 0
