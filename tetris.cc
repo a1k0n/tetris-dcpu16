@@ -1,11 +1,12 @@
 #include "crt0.h"
+#include "title.h"
 
 // TODO:
 //  - canonical score - bonus points for double/triple/tetris/combos/etc
+//  - "levels" and speeding up
 //  - detect game over
 //  - blit character-at-a-time, not block-at-a-time
 //  - better key repeat logic, esp. for down
-//  - logo w/ press key to start to init RNG
 // maybe:
 //  - ghost display
 //  - wall kicks/etc
@@ -37,6 +38,18 @@ static inline void screen_set_frameptr(void *ptr) {
 
 static inline void screen_set_fontptr(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,1\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
+}
+
+static inline void screen_set_paletteptr(void *ptr) {
+  asm("SET\tB,%1\n\tSET\tA,2\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
+}
+
+static inline void screen_dump_font(void *ptr) {
+  asm("SET\tB,%1\n\tSET\tA,4\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
+}
+
+static inline void screen_dump_palette(void *ptr) {
+  asm("SET\tB,%1\n\tSET\tA,5\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
 static struct Tetromino {
@@ -85,6 +98,7 @@ class Tetris
     screen_(screen),
     left_offset_(x_offset)
   {
+    rand_state_ = 0x6531;
   }
 
   void Init() {
@@ -120,10 +134,9 @@ class Tetris
     screen_[lo - 5 + 32] = 'n'|0xf000;
     screen_[lo - 4 + 32] = 'e'|0xf000;
     screen_[lo - 3 + 32] = 's'|0xf000;
-    speed_ = 30;
+    speed_ = 40;
     ticks_ = 0;
     score_ = lines_ = 0;
-    rand_state_ = 0x6531;
     ShufflePieces();
     next_piece_idx_ = 0;
     NextPiece();
@@ -387,8 +400,22 @@ int main()
   //Tetris t1(4, screen);
   //Tetris t2(4+12+2, screen);
 
+  unsigned fontbuf[256], palettebuf[16];
+  screen_dump_font(fontbuf);
+  screen_dump_palette(palettebuf);
+
+  // Title screen
+  screen_set_fontptr(title_data);
+  screen_set_paletteptr(title_data+0x100);
+  screen_set_frameptr(title_data+0x110);
+  do {
+    t.Random();
+  } while(keyboard_getch() == 0);
+
   // TODO: update font (later -- for now, use 0x1c)
   //memset(screen_, 0, sizeof(screen_));
+  screen_set_paletteptr(palettebuf);
+  screen_set_fontptr(fontbuf);
   screen_set_frameptr(screen);
 
   clock_init(1);
@@ -397,6 +424,7 @@ int main()
   t.BlitPlayfield(0, playfield_height);
   int ticks = clock_get_ticks();
   for(;;) {
+    t.Random(); // entropy!
     int newt = clock_get_ticks();
     int dt = newt - ticks;
     t.Update(dt);
