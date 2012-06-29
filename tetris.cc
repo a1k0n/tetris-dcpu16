@@ -1,5 +1,11 @@
+// dcpu.ru doesn't support DUMP_FONT and DUMP_PALETTE so we can't use the
+// titlescreen on it.  for 0x10co.de, enable it.
+#undef TITLESCREEN
+
 #include "crt0.h"
+#ifdef TITLESCREEN
 #include "title.h"
+#endif
 
 // TODO:
 //  - canonical score - bonus points for double/triple/tetris/combos/etc
@@ -400,7 +406,9 @@ int main()
   //Tetris t1(4, screen);
   //Tetris t2(4+12+2, screen);
 
+#ifdef TITLESCREEN
   unsigned fontbuf[256], palettebuf[16];
+  // This apparently doesn't work on dcpu.ru?
   screen_dump_font(fontbuf);
   screen_dump_palette(palettebuf);
 
@@ -412,10 +420,10 @@ int main()
     t.Random();
   } while(keyboard_getch() == 0);
 
-  // TODO: update font (later -- for now, use 0x1c)
-  //memset(screen_, 0, sizeof(screen_));
+  // TODO: make custom font for blocks
   screen_set_paletteptr(palettebuf);
   screen_set_fontptr(fontbuf);
+#endif
   screen_set_frameptr(screen);
 
   clock_init(1);

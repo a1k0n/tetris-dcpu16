@@ -2,7 +2,7 @@
 extern "C" {
 #endif
 extern void *memset(void* b, int c, unsigned len);
-// backward memcpy
+// backward memcpy (i was too lazy to implement proper memmove)
 extern void *memcpyb(void* b, void* a, unsigned len);
 
 // initialized by crt0
