@@ -1,16 +1,17 @@
 #include "crt0.h"
 
 // TODO:
-//  - clear lines, drop, re-check for more lines cleared, etc
+//  - canonical score - bonus points for double/triple/tetris/combos/etc
 //  - detect game over
 //  - blit character-at-a-time, not block-at-a-time
-//  - next piece indicator
 //  - better key repeat logic, esp. for down
-//  - lines/score display
 //  - logo w/ press key to start to init RNG
 //  - instructions
 // maybe:
 //  - ghost display
+//  - wall kicks/etc
+// mmmmmaybe:
+//  - t-spins?  or do they already work?
 //  - hold piece
 
 // Tetris guidelines: Playfield is 10 cells wide and at least 22 cells tall,
@@ -92,13 +93,34 @@ class Tetris
     memset(playfield_, 0, sizeof(playfield_));
     // bottom border
     int lo = left_offset_;
+    // draw bottom of well
     for(unsigned x = 0; x < playfield_width;x++) {
       screen_[lo + 11*32 + x] = 0x901c;
     }
+    // sides of well
     for(unsigned y = 0; y <= playfield_height/2;y++) {
       screen_[lo-1 + y*32] = 0x9900;
       screen_[lo+playfield_width + y*32] = 0x9900;
     }
+#if 0
+    // the next piece box just looks dumb, forget it
+    // next piece box
+    for(unsigned x = 1; x < 8; x++) {
+      screen_[lo+playfield_width + x] = 0x901c;
+      screen_[lo+playfield_width + x + 3*32] = 0x091c;
+    }
+    screen_[lo+playfield_width + 7 + 1*32] = 0x991c;
+    screen_[lo+playfield_width + 7 + 2*32] = 0x991c;
+#endif
+    screen_[lo+playfield_width + 2 + 32] = 'N'|0xf000;
+    screen_[lo+playfield_width + 3 + 32] = 'e'|0xf000;
+    screen_[lo+playfield_width + 4 + 32] = 'x'|0xf000;
+    screen_[lo+playfield_width + 5 + 32] = 't'|0xf000;
+    screen_[lo - 7 + 32] = 'L'|0xf000;
+    screen_[lo - 6 + 32] = 'i'|0xf000;
+    screen_[lo - 5 + 32] = 'n'|0xf000;
+    screen_[lo - 4 + 32] = 'e'|0xf000;
+    screen_[lo - 3 + 32] = 's'|0xf000;
     speed_ = 30;
     ticks_ = 0;
     score_ = lines_ = 0;
@@ -106,6 +128,7 @@ class Tetris
     ShufflePieces();
     next_piece_idx_ = 0;
     NextPiece();
+    DrawScore();
   }
 
   // "inside-out" Fisher-Yates shuffle
@@ -116,8 +139,34 @@ class Tetris
       piece_permutation_[i] = piece_permutation_[j];
       piece_permutation_[j] = i;
     }
+#if 0
+    // debug: show shuffle order on the screen
     for(unsigned i=0;i<7;i++)
       screen_[i] = 0x0f30 + piece_permutation_[i];
+#endif
+  }
+
+  void DrawScore() {
+    int lo = left_offset_ + 2*32;
+    int l = lines_;
+    for(int n=0;n<5;n++) {
+      screen_[lo - 3 - n] = l%10 + 0xf000 + '0';
+      l /= 10;
+    }
+  }
+
+  void DrawNextPiece(int piece) {
+    // this is custom piece-drawing code, ugh
+    unsigned c = tetris_pieces[piece].color;
+    unsigned shape = tetris_pieces[piece].shape[0];
+    int lo = left_offset_ + playfield_width + 2 + 2*32;
+    // All pieces fit into two rows in the initial orientation
+    for(unsigned i=0;i<4;i++) {
+      unsigned c1 = shape&0x8000 ? (c<<8) : 0;
+      unsigned c2 = shape&0x0800 ? (c<<12) : 0;
+      screen_[lo + i] = 0x1c | c1 | c2;
+      shape <<= 1;
+    }
   }
 
   void NextPiece() {
@@ -131,6 +180,7 @@ class Tetris
     piece_x_ = startoffs_x;
     piece_y_ = -1;
     piece_rot_ = 0;
+    DrawNextPiece(piece_permutation_[next_piece_idx_]);
   }
 
   void Update(int ticks) {
@@ -220,16 +270,21 @@ class Tetris
 
   void CheckLines() {
     //unsigned lines[playfield_height];
-    //unsigned nlines = 0;
+    unsigned nlines = 0;
     for(int j=playfield_height-1;j>=0;j--) {
       if(IsLineFull(j)) {
         //lines[nlines++] = j;
+        nlines ++;
         lines_ ++;
         memcpyb(playfield_ + playfield_width, playfield_, j*playfield_width);
         memset(playfield_, 0, playfield_width);
         BlitPlayfield(0, playfield_height);
         j++;
       }
+    }
+    if(nlines) {
+      // TODO: determine scores for single, double, triple, tetris, combos, etc
+      DrawScore();
     }
 #if 0
     for(int k=0;k<nlines;k++) {
