@@ -1,11 +1,5 @@
-// dcpu.ru doesn't support DUMP_FONT and DUMP_PALETTE so we can't use the
-// titlescreen on it.  for 0x10co.de, enable it.
-#undef TITLESCREEN
-
 #include "crt0.h"
-#ifdef TITLESCREEN
 #include "title.h"
-#endif
 
 // TODO:
 //  - canonical score - bonus points for double/triple/tetris/combos/etc
@@ -396,6 +390,14 @@ class Tetris
   unsigned playfield_[playfield_width*playfield_height];
 };
 
+void write_text(unsigned *screen, int offset, unsigned color, const char *str)
+{
+  screen += offset;
+  while(*str) {
+    *screen++ = color | *str++;
+  }
+}
+
 }
 
 int main()
@@ -408,25 +410,32 @@ int main()
   //Tetris t1(4, screen);
   //Tetris t2(4+12+2, screen);
 
-#ifdef TITLESCREEN
   unsigned fontbuf[256], palettebuf[16];
+  fontbuf[0] = 0xAA55;
+  palettebuf[0] = 0xAA55;
   // This apparently doesn't work on dcpu.ru?
   screen_dump_font(fontbuf);
   screen_dump_palette(palettebuf);
-
-  // Title screen
-  screen_set_fontptr(title_data);
-  screen_set_paletteptr(title_data+0x100);
-  screen_set_frameptr(title_data+0x110);
-  do {
-    t.Random();
-  } while(keyboard_getch() == 0);
-
-  // TODO: make custom font for blocks
-  screen_set_paletteptr(palettebuf);
-  screen_set_fontptr(fontbuf);
-#endif
-  screen_set_frameptr(screen);
+  if(fontbuf[0] == 0xAA55 || palettebuf[0] == 0xAA55) {
+    screen_set_frameptr(screen);
+    write_text(screen, 12,  0xf000, "TETRIS");
+    write_text(screen, 32,  0xf000, "Your screen doesn't support");
+    write_text(screen, 64,  0xf000, "MEM_DUMP_FONT/PALETTE.");
+    write_text(screen, 128, 0xf000, "No title screen; press a key");
+    write_text(screen, 160, 0xf000, "to start playing!");
+    do { t.Random(); } while(keyboard_getch() == 0);
+    memset(screen, 0, sizeof(screen));
+  } else {
+    // Title screen
+    screen_set_fontptr(title_data);
+    screen_set_paletteptr(title_data+0x100);
+    screen_set_frameptr(title_data+0x110);
+    do { t.Random(); } while(keyboard_getch() == 0);
+    // TODO: make custom font for blocks
+    screen_set_paletteptr(palettebuf);
+    screen_set_fontptr(fontbuf);
+    screen_set_frameptr(screen);
+  }
 
   clock_init(1);
   t.Init();
