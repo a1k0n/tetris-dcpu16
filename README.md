@@ -4,6 +4,9 @@ It's Tetris.  For DCPU-16.  Written in C++, in order to stress-test the
 LLVM/Clang toolchain.  Amazingly, it works (after working around several
 outstanding issues).
 
+See http://0x10co.de/ua5qu for a playable demo (Note: not necessarily the
+latest version).
+
 ### Building
 
 You need llvm, clang, and binutils to build this.  Follow the
