@@ -1,14 +1,14 @@
-# You need llvm and clang to build this.  Follow the instructions on the README
-# at http://github.com/llvm-dcpu16/llvm-dcpu16
-CLANG = ~/git/llvm-dcpu16/cbuild/bin/clang
-# You also need the das assembler (I could also have used binutils but there
-# are a few bugs I'm avoiding and this is just less complicated, though it's a
-# bit wonky).  http://github.com/jonpovey/das
-DAS = ~/git/das/das
+include config.mk
+# You need llvm, clang, and binutils to build this.  Follow the instructions on
+# the README at http://github.com/llvm-dcpu16/llvm-dcpu16
+# binutils is available at http://github.com/frot/binutils-dcpu16
+CLANG = $(LLVM_DIR)/bin/clang
+GAS = $(BINUTILS_DIR)/gas/as-new
+LD = $(BINUTILS_DIR)/ld/ld-new
 
 CFLAGS = -Wall -O2
 
-OBJS = crt0.s tetris.s
+OBJS = crt0.o tetris.o
 
 all: tetris.bin
 
@@ -17,10 +17,13 @@ dump: tetris.bin comments.s
 	@python dumpdat.py tetris.bin
 
 tetris.bin: $(OBJS)
-	cat $(OBJS) | $(DAS) -o $@ -
+	$(LD) -o $@ $(OBJS)
 
-%.s: %.cc
-	$(CLANG) -S $(CFLAGS) -target dcpu16 $< -o $@
+%.o: %.s
+	$(GAS) -o $@ $<
+
+%.o: %.cc
+	$(CLANG) -S $(CFLAGS) -target dcpu16 $< -o - | $(GAS) -o $@ -
 
 clean::
-	rm tetris.s tetris.bin
+	rm -f tetris.s tetris.bin *.o

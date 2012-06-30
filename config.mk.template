@@ -1,0 +1,2 @@
+LLVM_DIR = ~/git/llvm-dcpu16/cbuild
+BINUTILS_DIR = ~/git/binutils-dcpu16/build
