@@ -246,23 +246,18 @@ class Tetris
   }
 
   void CheckLines() {
-    //unsigned lines[playfield_height];
+    unsigned lines[playfield_height];
     unsigned nlines = 0;
     for(int j=playfield_height-1;j>=0;j--) {
       if(IsLineFull(j)) {
-        //lines[nlines++] = j;
-        nlines ++;
+        lines[nlines++] = j;
         lines_ ++;
-        memcpyb(playfield_ + playfield_width, playfield_, j*playfield_width);
-        memset(playfield_, 0, playfield_width);
-        BlitPlayfield(0, playfield_height);
         j++;
       }
     }
     if(nlines) {
       // TODO: determine scores for single, double, triple, tetris, combos, etc
       DrawScore();
-#if 0
     // this partial line-clearing animation code crashes llvm.  awesome.
       // animate clearing them, then drop everything
       for(int i=0;i<5;i++) {
@@ -270,11 +265,13 @@ class Tetris
           int offs = lines[k]*10 + 5;
           playfield_[offs - 1 - i] = 0;
           playfield_[offs + i] = 0;
-          //playfield_[0] = 0;
         }
         BlitPlayfield(0, playfield_height);
       }
-#endif
+      // TODO: actually drop the lines... i never got this far because of the compiler crash
+      //memcpyb(playfield_ + playfield_width, playfield_, j*playfield_width);
+      //memset(playfield_, 0, playfield_width);
+      //BlitPlayfield(0, playfield_height);
     }
   }
 
