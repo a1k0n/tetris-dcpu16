@@ -6,7 +6,6 @@
  - screen.MEM\_DUMP\_\* unimplemented
  - screen.MEM\_MAP\_FONT(0) does not restore default font
  - non-arrow keys aren't included in `pressed` array (see my patches for ref)
- - down arrow key queuing doesn't work?
 
 ### 0x10co.de bugs
  - arrow keys do not get buffered at all
@@ -17,4 +16,6 @@
 ### llvm-dcpu16 <-> binutils-dcpu16 interaction bugs
  - weak sections (e.g. from C++ inline instantiations) don't work
    workaround: avoid generating them by using anonymous namespaces
+ - jump tables for switch statements generate lowercase "pc" in "SET pc, ...",
+   which generates a reference to the symbol "pc" instead of the PC register.
 

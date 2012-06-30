@@ -1,58 +1,53 @@
 #include "crt0.h"
 #include "title.h"
 
-// TODO:
-//  - canonical score - bonus points for double/triple/tetris/combos/etc
-//  - "levels" and speeding up
-//  - detect game over
-//  - blit character-at-a-time, not block-at-a-time
-//  - better key repeat logic, esp. for down
-// maybe:
-//  - ghost display
-//  - wall kicks/etc
-// mmmmmaybe:
-//  - t-spins?  or do they already work?
-//  - hold piece
+namespace {
 
 // Tetris guidelines: Playfield is 10 cells wide and at least 22 cells tall,
 // where rows above 20 are hidden or obstructed by the field frame
-// The I and O spawn in the middle columns
-// The rest spawn in the left-middle columns
-static const int playfield_width = 10;
-static const int startoffs_x = 3;
-static const int playfield_height = 23;
-static const int center_offset = (32 - playfield_width)/2;
+const int playfield_width = 10;
+const int startoffs_x = 3;
+const int playfield_height = 23;
+const int center_offset = (32 - playfield_width)/2;
 
 template<class T> T min(T a, T b) { if(a<b) return a; return b; }
 template<class T> T max(T a, T b) { if(a>b) return a; return b; }
 
-static int toupper(int c) {
+int toupper(int c) {
   if(c >= 'a' && c <= 'z')
     return c - 32;
   return c;
 }
 
-static inline void screen_set_frameptr(void *ptr) {
+void write_text(unsigned *screen, int offset, unsigned color, const char *str)
+{
+  screen += offset;
+  while(*str) {
+    *screen++ = color | *str++;
+  }
+}
+
+inline void screen_set_frameptr(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,0\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
-static inline void screen_set_fontptr(void *ptr) {
+inline void screen_set_fontptr(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,1\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
-static inline void screen_set_paletteptr(void *ptr) {
+inline void screen_set_paletteptr(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,2\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
-static inline void screen_dump_font(void *ptr) {
+inline void screen_dump_font(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,4\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
-static inline void screen_dump_palette(void *ptr) {
+inline void screen_dump_palette(void *ptr) {
   asm("SET\tB,%1\n\tSET\tA,5\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
 }
 
-static struct Tetromino {
+struct Tetromino {
   unsigned color;
   unsigned shape[4];  // the shape as a 4x4 bitmap, in each orientation
   // MSB on the left, most significant nibble at the top
@@ -89,8 +84,6 @@ static struct Tetromino {
   }
 };
 
-namespace {
-
 class Tetris
 {
  public:
@@ -115,25 +108,8 @@ class Tetris
       screen_[lo-1 + y*32] = 0x9900;
       screen_[lo+playfield_width + y*32] = 0x9900;
     }
-#if 0
-    // the next piece box just looks dumb, forget it
-    // next piece box
-    for(unsigned x = 1; x < 8; x++) {
-      screen_[lo+playfield_width + x] = 0x901c;
-      screen_[lo+playfield_width + x + 3*32] = 0x091c;
-    }
-    screen_[lo+playfield_width + 7 + 1*32] = 0x991c;
-    screen_[lo+playfield_width + 7 + 2*32] = 0x991c;
-#endif
-    screen_[lo+playfield_width + 2 + 32] = 'N'|0xf000;
-    screen_[lo+playfield_width + 3 + 32] = 'e'|0xf000;
-    screen_[lo+playfield_width + 4 + 32] = 'x'|0xf000;
-    screen_[lo+playfield_width + 5 + 32] = 't'|0xf000;
-    screen_[lo - 7 + 32] = 'L'|0xf000;
-    screen_[lo - 6 + 32] = 'i'|0xf000;
-    screen_[lo - 5 + 32] = 'n'|0xf000;
-    screen_[lo - 4 + 32] = 'e'|0xf000;
-    screen_[lo - 3 + 32] = 's'|0xf000;
+    write_text(screen_, lo + playfield_width + 2 + 32, 0xf000, "Next");
+    write_text(screen_, lo - 7 + 32, 0xf000, "Lines");
     speed_ = 40;
     ticks_ = 0;
     score_ = lines_ = 0;
@@ -151,11 +127,6 @@ class Tetris
       piece_permutation_[i] = piece_permutation_[j];
       piece_permutation_[j] = i;
     }
-#if 0
-    // debug: show shuffle order on the screen
-    for(unsigned i=0;i<7;i++)
-      screen_[i] = 0x0f30 + piece_permutation_[i];
-#endif
   }
 
   void DrawScore() {
@@ -212,16 +183,6 @@ class Tetris
     return rand_state_&65535;
   }
 
-#if 0
-  void Scramble() {
-    for(unsigned j = 0; j < playfield_height; j++) {
-      for(unsigned i = 0; i < playfield_width; i++) {
-        playfield_[i+j*playfield_width] = piece_color[RandomPiece()];
-      }
-    }
-  }
-#endif
-
   // draws playfield from [minrow,maxrow) -- that is, maxrow-minrow rows, not
   // including maxrow.
   void BlitPlayfield(unsigned minrow, unsigned maxrow) {
@@ -237,6 +198,8 @@ class Tetris
     }
   }
 
+  // Draw the current tetromino into the playfield using a given color
+  // (or 0 to erase)
   void DrawPiece(unsigned color) {
     int playfield_offset = piece_y_*playfield_width + piece_x_;
     unsigned piece_data = tetris_pieces[current_piece_].shape[piece_rot_];
@@ -299,12 +262,8 @@ class Tetris
     if(nlines) {
       // TODO: determine scores for single, double, triple, tetris, combos, etc
       DrawScore();
-    }
 #if 0
-    for(int k=0;k<nlines;k++) {
-      unsigned offs = lines[k]*playfield_width;
-      memset(playfield_ + offs, 0, 10);
-    }
+    // this partial line-clearing animation code crashes llvm.  awesome.
       // animate clearing them, then drop everything
       for(int i=0;i<5;i++) {
         for(int k=0;k<nlines;k++) {
@@ -316,6 +275,7 @@ class Tetris
         BlitPlayfield(0, playfield_height);
       }
 #endif
+    }
   }
 
   // fall one square
@@ -332,11 +292,6 @@ class Tetris
       NextPiece();
       return;
     }
-    // if(piece_y_ > 28) piece_y_ = -4;
-    //current_piece_ ++; current_piece_ %= 7;
-    // collision-detect
-    // if collision, put piece back where it was in the buf and NextPiece()
-    // if clear, draw piece into buf at new location and BlitPlayfield()
     DrawPiece(current_color_);
     BlitPlayfield(max(0, piece_y_-1), min(23,piece_y_+4));
   }
@@ -390,26 +345,18 @@ class Tetris
   unsigned playfield_[playfield_width*playfield_height];
 };
 
-void write_text(unsigned *screen, int offset, unsigned color, const char *str)
-{
-  screen += offset;
-  while(*str) {
-    *screen++ = color | *str++;
-  }
-}
-
-}
+}  // anonymous namespace
 
 int main()
 {
-  // alloc screen, playfield
   unsigned screen[384];
-  // xxx<12>yy<12>zzz
-  // xxx+yy+zzz = 8
   Tetris t(center_offset, screen);
+  // Could do two-player tetris, e.g.:
   //Tetris t1(4, screen);
   //Tetris t2(4+12+2, screen);
 
+  // Detect whether we can get a copy of the default font/palette and if so,
+  // show the (crappy) title screen.  If not, complain.
   unsigned fontbuf[256], palettebuf[16];
   fontbuf[0] = 0xAA55;
   palettebuf[0] = 0xAA55;
@@ -439,7 +386,6 @@ int main()
 
   clock_init(1);
   t.Init();
-  //t.Scramble();
   t.BlitPlayfield(0, playfield_height);
   int ticks = clock_get_ticks();
   for(;;) {
@@ -468,6 +414,7 @@ int main()
       case 'Q':
         t.Rotate(-1);
         break;
+      case 0x81: // down
       case 'S':
         t.Fall();
         t.ResetLockTimer();
@@ -475,7 +422,7 @@ int main()
     }
 #if 0
     unsigned input = 0;
-    // this keyboard API is utterly silly
+    // this keyboard API is utterly silly; i give up
     input |= keyboard_scan(0x82)<<0; // left
     input |= keyboard_scan('A')<<0;  // left
     input |= keyboard_scan(0x83)<<1; // right
