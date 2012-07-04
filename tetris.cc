@@ -77,6 +77,7 @@ class Tetris
   void Init() {
     // these are already clear on any reasonable emulator but w/e
     memset(playfield_, 0, sizeof(playfield_));
+    memset(playfield_+playfield_width*playfield_height, 9, playfield_width); // bottom row is well-colored (9)
     // bottom border
     int lo = left_offset_;
     // draw bottom of well
@@ -166,14 +167,13 @@ class Tetris
   // draws playfield from [minrow,maxrow) -- that is, maxrow-minrow rows, not
   // including maxrow.
   void BlitPlayfield(unsigned minrow, unsigned maxrow) {
-    for(unsigned j = minrow; j < maxrow; j++) {
-      unsigned screen_idx = (j>>1)*32 + left_offset_;
-      for(unsigned i = 0; i < playfield_width; i++, screen_idx++) {
-        unsigned color = playfield_[i+j*playfield_width];
-        if(j&1)
-          screen_[screen_idx] = (screen_[screen_idx] & 0x0f00) | (color<<12)|0x1c;
-        else
-          screen_[screen_idx] = (screen_[screen_idx] & 0xf000) | (color<<8)|0x1c;
+    for(unsigned j = (minrow>>1); j < (maxrow+1 >> 1); j++) {
+      unsigned screen_idx = j*32 + left_offset_;
+      unsigned playfield_idx = j*playfield_width*2;
+      for(unsigned i = 0; i < playfield_width; i++, screen_idx++, playfield_idx++) {
+        unsigned c1 = playfield_[playfield_idx]<<8,
+                 c2 = playfield_[playfield_idx+playfield_width]<<12;
+        screen_[screen_idx] = c1|c2|0x1c;
       }
     }
   }
@@ -325,7 +325,7 @@ class Tetris
   int speed_, ticks_;
   unsigned long score_, lines_;
   unsigned long rand_state_;
-  unsigned playfield_[playfield_width*playfield_height];
+  unsigned playfield_[playfield_width*(playfield_height+1)];
 };
 
 }  // anonymous namespace
