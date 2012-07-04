@@ -27,26 +27,6 @@ void write_text(unsigned *screen, int offset, unsigned color, const char *str)
   }
 }
 
-inline void screen_set_frameptr(void *ptr) {
-  asm("SET\tB,%1\n\tSET\tA,0\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
-}
-
-inline void screen_set_fontptr(void *ptr) {
-  asm("SET\tB,%1\n\tSET\tA,1\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
-}
-
-inline void screen_set_paletteptr(void *ptr) {
-  asm("SET\tB,%1\n\tSET\tA,2\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
-}
-
-inline void screen_dump_font(void *ptr) {
-  asm("SET\tB,%1\n\tSET\tA,4\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
-}
-
-inline void screen_dump_palette(void *ptr) {
-  asm("SET\tB,%1\n\tSET\tA,5\n\tHWI %0" : : "g"(_hw_screen), "r"(ptr) : "A", "B");
-}
-
 struct Tetromino {
   unsigned color;
   unsigned shape[4];  // the shape as a 4x4 bitmap, in each orientation
@@ -246,35 +226,38 @@ class Tetris
   }
 
   void CheckLines() {
-    //unsigned lines[playfield_height];
+    unsigned lines[playfield_height];
     unsigned nlines = 0;
     for(int j=playfield_height-1;j>=0;j--) {
       if(IsLineFull(j)) {
-        //lines[nlines++] = j;
-        nlines ++;
-        lines_ ++;
-        memcpyb(playfield_ + playfield_width, playfield_, j*playfield_width);
-        memset(playfield_, 0, playfield_width);
-        BlitPlayfield(0, playfield_height);
-        j++;
+        lines[nlines++] = j;
       }
     }
     if(nlines) {
-      // TODO: determine scores for single, double, triple, tetris, combos, etc
-      DrawScore();
-#if 0
-    // this partial line-clearing animation code crashes llvm.  awesome.
+      lines_ += nlines;
+
+      // this partial line-clearing animation code crashes llvm.  awesome.
       // animate clearing them, then drop everything
       for(int i=0;i<5;i++) {
         for(int k=0;k<nlines;k++) {
           int offs = lines[k]*10 + 5;
           playfield_[offs - 1 - i] = 0;
           playfield_[offs + i] = 0;
-          //playfield_[0] = 0;
         }
+        //BlitPlayfield(lines[nlines-1], lines[0]);
         BlitPlayfield(0, playfield_height);
       }
-#endif
+      // collapse (slowly for now)
+      for(int j=0;j<nlines;j++) {
+        // we need to add j to lines[j] as each time we "drop" the field we
+        // need to adjust the line number accordingly.
+        memcpyb(playfield_ + playfield_width, playfield_, (lines[j]+j)*playfield_width);
+        if(j == 0) memset(playfield_, 0, playfield_width);
+        BlitPlayfield(0, playfield_height);
+      }
+
+      // TODO: determine scores for single, double, triple, tetris, combos, etc
+      DrawScore();
     }
   }
 

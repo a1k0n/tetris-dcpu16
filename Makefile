@@ -25,6 +25,7 @@ tetris.bin: $(OBJS)
 %.o: %.cc
 	$(CLANG) -S $(CFLAGS) -target dcpu16 $< -o $(patsubst %.o,%.s,$@)
 	$(GAS) -o $@ $(patsubst %.o,%.s,$@)
+	@rm -f $(patsubst %.o,%.s,$@)
 
 clean::
-	rm -f tetris.s tetris.bin *.o
+	rm -f tetris.bin *.o
