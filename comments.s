@@ -20,7 +20,6 @@
 ;  - proper score for double/triple/tetris/combos/etc
 ;  - proper game over detection
 ;  - "level" and speeding up
-;  - faster screen redraws
 ;  - proper wall kicks
 ;  - ghost piece
 ;  - hold function

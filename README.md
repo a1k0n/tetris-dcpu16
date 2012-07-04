@@ -35,7 +35,6 @@ issues with arrow key and space key handling.
  - detect game over (easy)
  - canonical score - bonus points for double/triple/tetris/combos/etc
  - "levels" and speeding up
- - redraw screen character-at-a-time, not block-at-a-time
  - better key repeat logic, esp. for down
 maybe:
  - ghost display
